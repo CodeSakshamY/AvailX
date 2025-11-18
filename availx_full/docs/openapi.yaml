@@ -1,0 +1,81 @@
+openapi: 3.0.3
+info:
+  title: AVAILX API
+  version: "0.1.0"
+servers:
+  - url: http://localhost:4000
+paths:
+  /auth/signup:
+    post:
+      summary: Signup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                phone: { type: string }
+      responses:
+        '200':
+          description: Signed up
+  /auth/login:
+    post:
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                phone: { type: string }
+                password: { type: string }
+      responses:
+        '200':
+          description: Logged in
+  /provider:
+    post:
+      summary: Create provider profile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProviderCreate'
+      responses:
+        '200':
+          description: provider created
+  /search:
+    get:
+      summary: Search providers
+      parameters:
+        - name: category
+          in: query
+          schema: { type: string }
+        - name: lat
+          in: query
+          schema: { type: number }
+        - name: lon
+          in: query
+          schema: { type: number }
+      responses:
+        '200':
+          description: results
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ProviderCreate:
+      type: object
+      properties:
+        name: { type: string }
+        category: { type: string }
+        lat: { type: number }
+        lon: { type: number }
