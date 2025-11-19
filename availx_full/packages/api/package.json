@@ -1,0 +1,22 @@
+{
+  "name": "@localpro/api",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./index.ts",
+  "types": "./index.ts",
+  "scripts": {
+    "type-check": "tsc --noEmit",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@localpro/database": "workspace:*",
+    "@localpro/types": "workspace:*",
+    "@trpc/server": "^10.45.0",
+    "zod": "^3.22.4",
+    "superjson": "^2.2.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.6",
+    "typescript": "^5.3.3"
+  }
+}
