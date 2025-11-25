@@ -451,16 +451,10 @@ We're looking for people who don't want to fill a job — **they want to build i
 ### For Investors
 **We're raising our pre-seed round.** If you invest in category-defining marketplaces:
 - 📧 Email: globalsaksham@gmail.com
-- 📄 Deck: [Link to pitch deck]
-- 📊 Financials: [Link to detailed projections]
+- 📄 Deck: ...
+- 📊 Financials: Under Work
 
-### For Service Providers
-**Want to be part of the Lucknow pilot?** Sign up for early access:
-- 🔗 [Provider waitlist link]
 
-### For Customers
-**Want to find verified, trusted service providers?** Join the waitlist:
-- 🔗 [Customer waitlist link]
 
 ---
 
