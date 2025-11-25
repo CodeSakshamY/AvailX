@@ -518,4 +518,4 @@ If you believe in that mission, we'd love to build with you.
 
 **Last Updated:** November 2025
 **Status:** Seeking co-founders, early team, and pre-seed investors
-**Contact:** [YOUR_EMAIL]
+**Contact:** globalsaksham@gmail.com
