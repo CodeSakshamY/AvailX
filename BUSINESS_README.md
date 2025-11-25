@@ -145,9 +145,9 @@ Anyone can join — but reputation, verification, ratings, and background checks
 ### Primary Revenue
 1. **Platform Commission** (8-15% on completed in-app bookings)
 2. **Provider Subscriptions**
-   - Free Tier: Basic listing, max 10 bookings/month
-   - Pro (₹499/month): Unlimited bookings, priority ranking, analytics
-   - Premium (₹999/month): Featured listing, AI insights, dedicated support
+   - Free Tier: Basic listing, max 30 bookings/month
+   - Pro (will depend on the revenue of the provider(3-4%of the earnings)): Unlimited bookings, priority ranking, analytics
+   - Premium (will depend on the revenue of the provider(5-8%of the earnings)): Featured listing, AI insights, dedicated support
 
 ### Secondary Revenue
 3. **Verification Services** (₹500-1,000 per background check)
@@ -444,13 +444,13 @@ We're looking for people who don't want to fill a job — **they want to build i
 
 ### For Co-founders & Team Members
 **Let's talk.** If you're excited about building trust infrastructure for a billion people:
-- 📧 Email: [YOUR_EMAIL]
-- 💼 LinkedIn: [YOUR_LINKEDIN]
-- 🐦 Twitter: [YOUR_TWITTER]
+- 📧 Email: globalsaksham@gmail.com
+- 💼 LinkedIn: CodeSaksham
+- 🐦 Twitter: CodeSakshamY
 
 ### For Investors
 **We're raising our pre-seed round.** If you invest in category-defining marketplaces:
-- 📧 Email: [YOUR_EMAIL]
+- 📧 Email: globalsaksham@gmail.com
 - 📄 Deck: [Link to pitch deck]
 - 📊 Financials: [Link to detailed projections]
 
@@ -506,7 +506,7 @@ If you believe in that mission, we'd love to build with you.
 
 | Metric | Value |
 |--------|-------|
-| **Lines of Code** | 8,300+ (production-ready) |
+| **Lines of Code** | 8,300+ (Under Development) |
 | **Market Size (TAM)** | ₹8.5 Lakh Crore+ |
 | **Pilot City** | Lucknow, Uttar Pradesh |
 | **MVP Timeline** | 90 days from dev execution |
