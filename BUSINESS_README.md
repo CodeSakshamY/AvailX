@@ -163,6 +163,7 @@ Anyone can join — but reputation, verification, ratings, and background checks
 | **Year 1 — MVP & Validation** | 200 – 1,000 | 3,000 – 15,000 | 5,000 – 20,000 | ₹300 – ₹800 | **5–10%** | **₹12,00,000 – ₹72,00,000** |
 | **Year 2 — Growth Phase** | 5,000 – 20,000 | 50,000 – 2,00,000 | 60,000 – 3,00,000 | ₹350 – ₹900 | **7–12%** | **₹1,80,00,000 – ₹24,00,00,000** |
 | **Year 3 — Expansion & Scale** | 30,000 – 1,00,000 | 5,00,000 – 15,00,000 | 3,00,000 – 12,00,000 | ₹400 – ₹1,200 | **10–15%** | **₹12,00,00,000 – ₹96,00,00,000** |
+
 **Path to profitability:** 12-18 months post-MVP launch
 
 ---
