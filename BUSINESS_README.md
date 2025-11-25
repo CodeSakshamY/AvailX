@@ -157,12 +157,12 @@ Anyone can join — but reputation, verification, ratings, and background checks
 
 ### Projected Revenue (Conservative Estimates)
 
-| Year | Providers | Monthly Bookings | Avg Value | Annual Revenue |
-|------|-----------|------------------|-----------|----------------|
-| **Year 1** | 2,000 | 10,000 | ₹500 | ₹90 Lakh |
-| **Year 2** | 20,000 | 200,000 | ₹600 | ₹19.4 Crore |
-| **Year 3** | 100,000 | 1,000,000 | ₹700 | ₹104 Crore |
 
+| **Year** | **Providers Onboarded** | **Active Monthly Users** | **Monthly Bookings** | **Avg Booking Value (ABV)** | **Commission %** | **Annual Revenue (Platform Earnings)** |
+|---------|--------------------------|---------------------------|-----------------------|-----------------------------|------------------|----------------------------------------|
+| **Year 1 — MVP & Validation** | 200 – 1,000 | 3,000 – 15,000 | 5,000 – 20,000 | ₹300 – ₹800 | **5–10%** | **₹12,00,000 – ₹72,00,000** |
+| **Year 2 — Growth Phase** | 5,000 – 20,000 | 50,000 – 2,00,000 | 60,000 – 3,00,000 | ₹350 – ₹900 | **7–12%** | **₹1,80,00,000 – ₹24,00,00,000** |
+| **Year 3 — Expansion & Scale** | 30,000 – 1,00,000 | 5,00,000 – 15,00,000 | 3,00,000 – 12,00,000 | ₹400 – ₹1,200 | **10–15%** | **₹12,00,00,000 – ₹96,00,00,000** |
 **Path to profitability:** 12-18 months post-MVP launch
 
 ---
