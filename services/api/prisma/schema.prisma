@@ -1,0 +1,674 @@
+// ===========================
+// AVAILX Database Schema v1.0
+// Production-ready Prisma schema for two-sided marketplace
+// PostgreSQL 15+ with PostGIS extension
+// ===========================
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions", "fullTextSearch"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [postgis(version: "3.3")]
+}
+
+// ===========================
+// CORE USER MODELS
+// ===========================
+
+model User {
+  id        String   @id @default(uuid()) @db.Uuid
+  phone     String   @unique @db.VarChar(15)
+  phoneVerifiedAt DateTime?
+  email     String?  @unique @db.VarChar(255)
+  emailVerifiedAt DateTime?
+
+  fullName  String   @db.VarChar(255)
+  avatarUrl String?  @db.VarChar(512)
+
+  role      UserRole @default(CUSTOMER)
+  status    UserStatus @default(ACTIVE)
+
+  // Location (for customers' default location)
+  latitude  Float?
+  longitude Float?
+  address   String?  @db.Text
+  city      String?  @db.VarChar(100)
+  state     String?  @db.VarChar(100)
+  pincode   String?  @db.VarChar(10)
+
+  // Preferences (JSON for flexibility)
+  preferences Json?  @db.JsonB
+
+  // Security
+  passwordHash String? @db.VarChar(255) // Optional for phone-only auth
+  lastLoginAt  DateTime?
+  lastLoginIp  String? @db.VarChar(45) // IPv6 compatible
+
+  // Metadata
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3) // Soft delete
+
+  // Relations
+  provider          Provider?
+  bookingsAsCustomer Booking[] @relation("CustomerBookings")
+  reviews           Review[]
+  notificationTokens NotificationToken[]
+  auditLogs         Audit[] @relation("AuditActor")
+  sessions          Session[]
+
+  @@index([phone])
+  @@index([email])
+  @@index([city, state])
+  @@index([status, role])
+  @@index([createdAt])
+  @@map("users")
+}
+
+enum UserRole {
+  CUSTOMER
+  PROVIDER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+// ===========================
+// PROVIDER MODEL
+// ===========================
+
+model Provider {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @unique @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Business info
+  businessName String? @db.VarChar(255)
+  description  String? @db.Text
+
+  // Geolocation (PostGIS geometry column created via raw SQL)
+  // Prisma stores lat/lon, geometry column sync via trigger
+  latitude     Float
+  longitude    Float
+  serviceRadiusKm Float @default(10) // Default 10km service radius
+
+  // Service details
+  categories   String[] @db.VarChar(100) // Array of category slugs
+
+  // Reputation & metrics (denormalized for fast queries)
+  reputationScore   Float   @default(50) @db.Real // 0-100 scale
+  totalRatings      Int     @default(0)
+  averageRating     Float   @default(0) @db.Real // 0-5 scale
+  totalCompletedJobs Int    @default(0)
+  totalCancellations Int   @default(0)
+  acceptanceRate    Float   @default(100) @db.Real // Percentage
+  avgResponseTimeMin Int    @default(0) // Minutes
+
+  // Verification
+  verificationStatus VerificationStatus @default(UNVERIFIED)
+  verificationTier   Int @default(0) // 0=unverified, 1=basic, 2=standard, 3=premium
+  verifiedAt         DateTime? @db.Timestamptz(3)
+  hasPaidBadge       Boolean @default(false)
+
+  // Availability
+  isAvailable        Boolean @default(true)
+  isAcceptingBookings Boolean @default(true)
+
+  // Full-text search (tsvector, populated via trigger)
+  searchVector Unsupported("tsvector")?
+
+  // Metadata
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  lastActiveAt DateTime @default(now()) @db.Timestamptz(3)
+
+  // Relations
+  listings           Listing[]
+  availabilities     Availability[]
+  bookings           Booking[] @relation("ProviderBookings")
+  reviews            Review[] @relation("ProviderReviews")
+  verifications      ProviderVerification[]
+  reputationHistory  ReputationHistory[]
+  transactions       Transaction[]
+  embeddings         Embedding[]
+
+  @@index([userId])
+  @@index([latitude, longitude]) // For bounding box queries
+  @@index([reputationScore(sort: Desc), verificationTier(sort: Desc)])
+  @@index([categories]) // GIN index for array
+  @@index([verificationStatus, isAvailable])
+  @@index([lastActiveAt(sort: Desc)])
+  @@index([searchVector], type: Gin) // Full-text search
+  @@map("providers")
+}
+
+enum VerificationStatus {
+  UNVERIFIED
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+// ===========================
+// LISTINGS (Services offered)
+// ===========================
+
+model Listing {
+  id         String   @id @default(uuid()) @db.Uuid
+  providerId String   @db.Uuid
+  provider   Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  // Service details
+  title       String  @db.VarChar(255)
+  description String  @db.Text
+  category    String  @db.VarChar(100)
+  subcategory String? @db.VarChar(100)
+
+  // Pricing
+  priceType   PriceType
+  basePrice   Decimal   @db.Decimal(10, 2) // INR
+  hourlyRate  Decimal?  @db.Decimal(10, 2)
+
+  // Media
+  imageUrls   String[] @db.VarChar(512) // Array of S3 keys
+
+  // Availability
+  isActive    Boolean @default(true)
+
+  // Duration (estimated)
+  estimatedDurationMin Int? // Minutes
+
+  // Full-text search
+  searchVector Unsupported("tsvector")?
+
+  // Metadata
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  // Relations
+  bookings Booking[]
+
+  @@index([providerId])
+  @@index([category, subcategory])
+  @@index([isActive, category])
+  @@index([searchVector], type: Gin)
+  @@map("listings")
+}
+
+enum PriceType {
+  FIXED
+  HOURLY
+  CUSTOM
+}
+
+// ===========================
+// AVAILABILITY
+// ===========================
+
+model Availability {
+  id         String   @id @default(uuid()) @db.Uuid
+  providerId String   @db.Uuid
+  provider   Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  // Time slot
+  dayOfWeek  Int      // 0=Sunday, 6=Saturday
+  startTime  String   @db.VarChar(5) // HH:MM format (24h)
+  endTime    String   @db.VarChar(5)
+
+  // Overrides
+  specificDate DateTime? @db.Date // For specific date overrides
+  isAvailable  Boolean @default(true)
+
+  // Metadata
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([providerId, dayOfWeek])
+  @@index([providerId, specificDate])
+  @@map("availabilities")
+}
+
+// ===========================
+// BOOKINGS
+// ===========================
+
+model Booking {
+  id         String   @id @default(uuid()) @db.Uuid
+
+  // Parties
+  customerId String   @db.Uuid
+  customer   User     @relation("CustomerBookings", fields: [customerId], references: [id])
+
+  providerId String   @db.Uuid
+  provider   Provider @relation("ProviderBookings", fields: [providerId], references: [id])
+
+  listingId  String   @db.Uuid
+  listing    Listing  @relation(fields: [listingId], references: [id])
+
+  // Schedule
+  scheduledFor DateTime @db.Timestamptz(3)
+  estimatedDurationMin Int
+
+  // Location
+  serviceLatitude  Float
+  serviceLongitude Float
+  serviceAddress   String @db.Text
+
+  // Status
+  status     BookingStatus @default(PENDING)
+
+  // Pricing
+  quotedPrice    Decimal @db.Decimal(10, 2)
+  finalPrice     Decimal? @db.Decimal(10, 2) // After service, may differ
+  paymentStatus  PaymentStatus @default(UNPAID)
+
+  // Notes
+  customerNotes  String? @db.Text
+  providerNotes  String? @db.Text
+  cancellationReason String? @db.Text
+
+  // Timestamps
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(3)
+  confirmedAt    DateTime? @db.Timestamptz(3)
+  startedAt      DateTime? @db.Timestamptz(3)
+  completedAt    DateTime? @db.Timestamptz(3)
+  cancelledAt    DateTime? @db.Timestamptz(3)
+
+  // Relations
+  review       Review?
+  transactions Transaction[]
+  auditLogs    Audit[] @relation("BookingAudits")
+
+  @@index([customerId, status])
+  @@index([providerId, status])
+  @@index([listingId])
+  @@index([status, scheduledFor])
+  @@index([scheduledFor]) // For partitioning and range queries
+  @@index([createdAt]) // For time-based partitioning
+  @@map("bookings")
+}
+
+enum BookingStatus {
+  PENDING       // Customer requested
+  CONFIRMED     // Provider accepted
+  IN_PROGRESS   // Service started
+  COMPLETED     // Service done
+  CANCELLED     // Cancelled by either party
+  NO_SHOW       // Customer didn't show up
+}
+
+enum PaymentStatus {
+  UNPAID
+  PENDING
+  PAID
+  REFUNDED
+  FAILED
+}
+
+// ===========================
+// REVIEWS
+// ===========================
+
+model Review {
+  id         String   @id @default(uuid()) @db.Uuid
+
+  bookingId  String   @unique @db.Uuid
+  booking    Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  customerId String   @db.Uuid
+  customer   User     @relation(fields: [customerId], references: [id])
+
+  providerId String   @db.Uuid
+  provider   Provider @relation("ProviderReviews", fields: [providerId], references: [id])
+
+  // Rating
+  rating     Int      // 1-5 stars
+
+  // Review text
+  title      String?  @db.VarChar(255)
+  comment    String?  @db.Text
+
+  // Moderation
+  isPublished Boolean @default(true)
+  isFlagged   Boolean @default(false)
+  moderatedBy String? @db.Uuid
+  moderatedAt DateTime? @db.Timestamptz(3)
+
+  // Response from provider
+  providerResponse String? @db.Text
+  respondedAt      DateTime? @db.Timestamptz(3)
+
+  // Metadata
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([providerId, isPublished])
+  @@index([customerId])
+  @@index([rating])
+  @@index([createdAt(sort: Desc)])
+  @@map("reviews")
+}
+
+// ===========================
+// TRANSACTIONS & PAYMENTS
+// ===========================
+
+model Transaction {
+  id         String   @id @default(uuid()) @db.Uuid
+
+  bookingId  String   @db.Uuid
+  booking    Booking  @relation(fields: [bookingId], references: [id])
+
+  providerId String   @db.Uuid
+  provider   Provider @relation(fields: [providerId], references: [id])
+
+  // Amounts (all in INR)
+  amount             Decimal @db.Decimal(10, 2) // Total amount
+  platformFeePercent Decimal @db.Decimal(5, 2) // e.g., 15.00 for 15%
+  platformFeeAmount  Decimal @db.Decimal(10, 2)
+  gstPercent         Decimal @db.Decimal(5, 2) // e.g., 18.00 for 18%
+  gstAmount          Decimal @db.Decimal(10, 2)
+  providerPayout     Decimal @db.Decimal(10, 2) // Net to provider
+
+  // Payment gateway
+  paymentGateway     String  @db.VarChar(50) // razorpay, stripe, etc.
+  gatewayTxnId       String? @db.VarChar(255)
+  gatewayResponse    Json?   @db.JsonB
+
+  // Status
+  status             TransactionStatus @default(PENDING)
+
+  // Settlement
+  settledAt          DateTime? @db.Timestamptz(3)
+  settlementBatchId  String? @db.VarChar(100)
+
+  // Metadata
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([bookingId])
+  @@index([providerId, status])
+  @@index([status, createdAt])
+  @@index([settlementBatchId])
+  @@index([createdAt]) // For partitioning
+  @@map("transactions")
+}
+
+enum TransactionStatus {
+  PENDING
+  AUTHORIZED
+  CAPTURED
+  COMPLETED
+  REFUNDED
+  FAILED
+}
+
+// ===========================
+// AUDIT LOGS
+// ===========================
+
+model Audit {
+  id         String   @id @default(uuid()) @db.Uuid
+
+  // Actor (who did it)
+  actorId    String?  @db.Uuid
+  actor      User?    @relation("AuditActor", fields: [actorId], references: [id])
+  actorRole  String   @db.VarChar(50) // CUSTOMER, PROVIDER, ADMIN, SYSTEM
+
+  // Entity (what was affected)
+  entityType String   @db.VarChar(100) // User, Provider, Booking, etc.
+  entityId   String   @db.Uuid
+
+  // Action
+  action     String   @db.VarChar(100) // CREATE, UPDATE, DELETE, LOGIN, etc.
+
+  // Changes (JSON diff)
+  diff       Json?    @db.JsonB // { before: {...}, after: {...} }
+
+  // Context
+  ip         String?  @db.VarChar(45)
+  userAgent  String?  @db.VarChar(512)
+  metadata   Json?    @db.JsonB // Additional context
+
+  // Relations (polymorphic)
+  bookingId  String?  @db.Uuid
+  booking    Booking? @relation("BookingAudits", fields: [bookingId], references: [id])
+
+  // Timestamp
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([actorId, createdAt])
+  @@index([entityType, entityId, createdAt])
+  @@index([action, createdAt])
+  @@index([createdAt]) // For partitioning
+  @@map("audits")
+}
+
+// ===========================
+// REPUTATION HISTORY
+// ===========================
+
+model ReputationHistory {
+  id         String   @id @default(uuid()) @db.Uuid
+
+  providerId String   @db.Uuid
+  provider   Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  // Snapshot
+  reputationScore   Float @db.Real
+  totalRatings      Int
+  averageRating     Float @db.Real
+  totalCompletedJobs Int
+  totalCancellations Int
+  acceptanceRate    Float @db.Real
+  avgResponseTimeMin Int
+
+  // Reason for change
+  changeReason String? @db.VarChar(255) // "New review", "Cancellation", "Recalculation"
+
+  // Metadata
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([providerId, createdAt(sort: Desc)])
+  @@map("reputation_history")
+}
+
+// ===========================
+// PROVIDER VERIFICATIONS
+// ===========================
+
+model ProviderVerification {
+  id         String   @id @default(uuid()) @db.Uuid
+
+  providerId String   @db.Uuid
+  provider   Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  // Document type
+  docType    VerificationDocType
+
+  // Storage (S3/MinIO key, NOT the actual file)
+  docKey     String   @db.VarChar(512) // s3://bucket/provider-id/doc-type-timestamp.ext
+
+  // Security (one-way hash for Aadhaar, never store actual number)
+  hashFingerprint String? @db.VarChar(64) // SHA-256 hash
+
+  // Status
+  status     VerificationDocStatus @default(PENDING)
+
+  // Review
+  verifiedAt DateTime? @db.Timestamptz(3)
+  verifiedBy String?   @db.Uuid // admin user ID
+  rejectionReason String? @db.Text
+
+  // Tier (after verification)
+  assignedTier Int @default(0) // 0=rejected, 1-3=verified tiers
+
+  // Paid badge transaction (if applicable)
+  paidBadgeTxnId String? @db.Uuid
+
+  // Metadata
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
+  expiresAt  DateTime? @db.Timestamptz(3) // For time-limited verifications
+
+  @@index([providerId, status])
+  @@index([status, createdAt])
+  @@map("provider_verifications")
+}
+
+enum VerificationDocType {
+  AADHAAR_HASH      // Only hash stored
+  PAN_MASKED        // Only last 4 digits + hash
+  DRIVING_LICENSE
+  BUSINESS_REGISTRATION
+  GST_CERTIFICATE
+  POLICE_VERIFICATION
+  SKILL_CERTIFICATE
+}
+
+enum VerificationDocStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+// ===========================
+// NOTIFICATIONS
+// ===========================
+
+model NotificationToken {
+  id         String   @id @default(uuid()) @db.Uuid
+
+  userId     String   @db.Uuid
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Device info
+  token      String   @db.VarChar(512) // FCM/APNS token
+  platform   String   @db.VarChar(20) // ios, android, web
+  deviceId   String?  @db.VarChar(255)
+
+  // Status
+  isActive   Boolean  @default(true)
+
+  // Metadata
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  lastUsedAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@unique([userId, token])
+  @@index([userId, isActive])
+  @@map("notification_tokens")
+}
+
+// ===========================
+// EMBEDDINGS (AI/ML)
+// ===========================
+
+model Embedding {
+  id         String   @id @default(uuid()) @db.Uuid
+
+  // Polymorphic relation
+  entityType String   @db.VarChar(50) // Provider, Listing
+  entityId   String   @db.Uuid
+
+  // Provider-specific relation (for typed queries)
+  providerId String?  @db.Uuid
+  provider   Provider? @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  // Vector (store as bytea or JSON for Prisma compatibility)
+  // For production, migrate to Qdrant/Weaviate
+  vectorData Bytes?   @db.ByteA // Binary encoded vector
+  vectorJson Json?    @db.JsonB // Alternative: JSON array
+
+  // Metadata
+  model      String   @db.VarChar(100) // text-embedding-ada-002, etc.
+  dimensions Int      // 1536 for OpenAI ada-002
+
+  // Sync status
+  syncedToVectorDb Boolean @default(false)
+  vectorDbId       String? @db.VarChar(255) // External vector DB ID
+
+  // Timestamps
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
+
+  @@unique([entityType, entityId])
+  @@index([entityType, entityId])
+  @@index([providerId])
+  @@map("embeddings")
+}
+
+// ===========================
+// ADMIN USERS
+// ===========================
+
+model AdminUser {
+  id         String   @id @default(uuid()) @db.Uuid
+
+  email      String   @unique @db.VarChar(255)
+  passwordHash String @db.VarChar(255)
+
+  fullName   String   @db.VarChar(255)
+  role       AdminRole @default(MODERATOR)
+
+  // Permissions (JSON for flexibility)
+  permissions Json?   @db.JsonB
+
+  // Status
+  isActive   Boolean  @default(true)
+
+  // MFA
+  mfaEnabled Boolean  @default(false)
+  mfaSecret  String?  @db.VarChar(255)
+
+  // Metadata
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
+  lastLoginAt DateTime? @db.Timestamptz(3)
+
+  @@index([email])
+  @@map("admin_users")
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  ADMIN
+  MODERATOR
+  SUPPORT
+}
+
+// ===========================
+// SESSIONS
+// ===========================
+
+model Session {
+  id         String   @id @default(uuid()) @db.Uuid
+
+  userId     String   @db.Uuid
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Session data
+  token      String   @unique @db.VarChar(512)
+  expiresAt  DateTime @db.Timestamptz(3)
+
+  // Device info
+  ip         String?  @db.VarChar(45)
+  userAgent  String?  @db.VarChar(512)
+
+  // Metadata
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  lastActiveAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([userId, expiresAt])
+  @@index([token])
+  @@map("sessions")
+}
