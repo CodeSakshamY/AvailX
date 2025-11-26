@@ -393,7 +393,7 @@ We're looking for people who don't want to fill a job — **they want to build i
 - Tier 2/3 cities (60% of India) largely unserved
 
 #### 2. Proven Founder Execution
-- Built 8,300+ lines of production code solo
+- Built 13,000+ lines of production code solo
 - Complete architecture + documentation before fundraising
 - Early provider & customer validation
 
