@@ -287,3 +287,342 @@ export type ApproveProviderInput = z.infer<typeof approveProviderSchema>;
 export type BanUserInput = z.infer<typeof banUserSchema>;
 
 export type SendNotificationInput = z.infer<typeof sendNotificationSchema>;
+
+// ============================================================================
+// ADDITIONAL AUTH SCHEMAS
+// ============================================================================
+
+export const updateProfileSchema = z.object({
+  name: z.string().min(2).optional(),
+  email: z.string().email().optional(),
+  profilePhoto: z.string().url().optional(),
+});
+
+export const changePasswordSchema = z.object({
+  currentPassword: z.string(),
+  newPassword: z.string().min(8, 'Password must be at least 8 characters'),
+});
+
+// ============================================================================
+// PROVIDER EXTENDED SCHEMAS
+// ============================================================================
+
+export const uploadDocumentSchema = z.object({
+  type: z.enum(['AADHAAR', 'PAN', 'CERTIFICATION', 'ID_PROOF', 'ADDRESS_PROOF', 'POLICE_CLEARANCE']),
+  url: z.string().url(),
+  title: z.string().optional(),
+  issuer: z.string().optional(),
+  issueDate: z.string().datetime().optional(),
+  expiryDate: z.string().datetime().optional(),
+});
+
+export const setWorkRadiusSchema = z.object({
+  lat: z.number(),
+  lng: z.number(),
+  radiusKm: z.number().min(1).max(50),
+});
+
+export const setAvailabilitySchema = z.object({
+  date: z.string().datetime(),
+  slots: z.array(z.object({
+    start: z.string().regex(/^\d{2}:\d{2}$/),
+    end: z.string().regex(/^\d{2}:\d{2}$/),
+    isAvailable: z.boolean(),
+  })),
+});
+
+export const addServiceSchema = z.object({
+  name: z.string().min(3),
+  description: z.string().min(10),
+  pricing: z.object({
+    amount: z.number().positive(),
+    unit: z.enum(['HOURLY', 'FIXED', 'PER_UNIT']),
+  }),
+  duration: z.number().positive().optional(), // in minutes
+});
+
+export const updateServiceSchema = z.object({
+  serviceId: z.string().cuid(),
+  name: z.string().min(3).optional(),
+  description: z.string().min(10).optional(),
+  pricing: z.object({
+    amount: z.number().positive(),
+    unit: z.enum(['HOURLY', 'FIXED', 'PER_UNIT']),
+  }).optional(),
+  duration: z.number().positive().optional(),
+});
+
+export const removeServiceSchema = z.object({
+  serviceId: z.string().cuid(),
+});
+
+// ============================================================================
+// CATEGORY & SERVICE SCHEMAS
+// ============================================================================
+
+export const getCategorySchema = z.object({
+  categoryId: z.string().cuid(),
+});
+
+export const getSubCategoriesSchema = z.object({
+  categoryId: z.string().cuid(),
+});
+
+export const getServicesByProviderSchema = z.object({
+  providerId: z.string().cuid(),
+});
+
+// ============================================================================
+// BOOKING EXTENDED SCHEMAS
+// ============================================================================
+
+export const rescheduleBookingSchema = z.object({
+  bookingId: z.string().cuid(),
+  scheduledDate: z.string().datetime(),
+  scheduledTime: z.object({
+    start: z.string().regex(/^\d{2}:\d{2}$/),
+    end: z.string().regex(/^\d{2}:\d{2}$/),
+  }),
+  reason: z.string().min(10).optional(),
+});
+
+// ============================================================================
+// REVIEW EXTENDED SCHEMAS
+// ============================================================================
+
+export const updateReviewSchema = z.object({
+  reviewId: z.string().cuid(),
+  overallRating: z.number().int().min(1).max(5).optional(),
+  qualityRating: z.number().int().min(1).max(5).optional(),
+  punctualityRating: z.number().int().min(1).max(5).optional(),
+  professionalismRating: z.number().int().min(1).max(5).optional(),
+  valueRating: z.number().int().min(1).max(5).optional(),
+  comment: z.string().max(1000).optional(),
+  photos: z.array(z.string().url()).max(5).optional(),
+});
+
+export const deleteReviewSchema = z.object({
+  reviewId: z.string().cuid(),
+});
+
+export const getReviewsForProviderSchema = z.object({
+  providerId: z.string().cuid(),
+  page: z.number().int().positive().default(1),
+  limit: z.number().int().positive().max(50).default(20),
+});
+
+export const getRatingsSummarySchema = z.object({
+  providerId: z.string().cuid(),
+});
+
+// ============================================================================
+// PAYMENT EXTENDED SCHEMAS
+// ============================================================================
+
+export const createPaymentIntentSchema = z.object({
+  bookingId: z.string().cuid(),
+  amount: z.number().positive(),
+  currency: z.string().default('INR'),
+});
+
+export const confirmPaymentSchema = z.object({
+  paymentIntentId: z.string(),
+  paymentMethodId: z.string(),
+});
+
+export const refundPaymentSchema = z.object({
+  paymentId: z.string().cuid(),
+  amount: z.number().positive().optional(),
+  reason: z.string(),
+});
+
+export const getTransactionHistorySchema = z.object({
+  userId: z.string().cuid().optional(),
+  page: z.number().int().positive().default(1),
+  limit: z.number().int().positive().max(50).default(20),
+});
+
+// ============================================================================
+// NOTIFICATION EXTENDED SCHEMAS
+// ============================================================================
+
+export const sendBookingConfirmationSchema = z.object({
+  bookingId: z.string().cuid(),
+});
+
+export const sendProviderAlertSchema = z.object({
+  providerId: z.string().cuid(),
+  type: z.enum(['NEW_BOOKING', 'CANCELLATION', 'REVIEW', 'MESSAGE']),
+  data: z.record(z.any()),
+});
+
+export const sendPaymentSuccessSchema = z.object({
+  paymentId: z.string().cuid(),
+});
+
+export const sendReviewReminderSchema = z.object({
+  bookingId: z.string().cuid(),
+});
+
+export const updateNotificationPreferencesSchema = z.object({
+  email: z.boolean().optional(),
+  push: z.boolean().optional(),
+  sms: z.boolean().optional(),
+  bookingUpdates: z.boolean().optional(),
+  messages: z.boolean().optional(),
+  promotions: z.boolean().optional(),
+});
+
+// ============================================================================
+// AI ROUTER SCHEMAS
+// ============================================================================
+
+export const askAssistantSchema = z.object({
+  query: z.string().min(5),
+  context: z.record(z.any()).optional(),
+  conversationId: z.string().optional(),
+});
+
+export const getProviderInsightsSchema = z.object({
+  providerId: z.string().cuid(),
+  period: z.enum(['WEEK', 'MONTH', 'QUARTER', 'YEAR']).default('MONTH'),
+});
+
+export const getAutoReplySuggestionsSchema = z.object({
+  messageContent: z.string(),
+  chatRoomId: z.string().cuid(),
+});
+
+export const getSmartMatchingSchema = z.object({
+  serviceType: z.string(),
+  location: z.object({
+    lat: z.number(),
+    lng: z.number(),
+  }),
+  requirements: z.string().optional(),
+  budget: z.number().positive().optional(),
+});
+
+// ============================================================================
+// CHAT EXTENDED SCHEMAS
+// ============================================================================
+
+export const createChatSessionSchema = z.object({
+  recipientId: z.string().cuid(),
+  bookingId: z.string().cuid().optional(),
+});
+
+export const getChatMessagesSchema = z.object({
+  chatRoomId: z.string().cuid(),
+  limit: z.number().int().positive().max(100).default(50),
+  cursor: z.string().cuid().optional(),
+});
+
+export const markReadSchema = z.object({
+  chatRoomId: z.string().cuid(),
+  lastReadMessageId: z.string().cuid(),
+});
+
+// ============================================================================
+// ADMIN EXTENDED SCHEMAS
+// ============================================================================
+
+export const getAllUsersSchema = z.object({
+  role: z.enum(['CUSTOMER', 'PROVIDER', 'ADMIN']).optional(),
+  isActive: z.boolean().optional(),
+  page: z.number().int().positive().default(1),
+  limit: z.number().int().positive().max(100).default(50),
+});
+
+export const getAllProvidersSchema = z.object({
+  status: z.enum(['PENDING', 'APPROVED', 'REJECTED']).optional(),
+  categoryId: z.string().cuid().optional(),
+  page: z.number().int().positive().default(1),
+  limit: z.number().int().positive().max(100).default(50),
+});
+
+export const verifyProviderDocumentsSchema = z.object({
+  providerId: z.string().cuid(),
+  documentType: z.enum(['AADHAAR', 'BACKGROUND_CHECK', 'CERTIFICATION']),
+  verified: z.boolean(),
+  notes: z.string().optional(),
+});
+
+export const blockUserSchema = z.object({
+  userId: z.string().cuid(),
+  reason: z.string().min(10),
+  permanent: z.boolean().default(false),
+});
+
+export const blockProviderSchema = z.object({
+  providerId: z.string().cuid(),
+  reason: z.string().min(10),
+  permanent: z.boolean().default(false),
+});
+
+export const listReportsSchema = z.object({
+  type: z.enum(['USER', 'PROVIDER', 'REVIEW', 'BOOKING']).optional(),
+  status: z.enum(['PENDING', 'RESOLVED', 'DISMISSED']).optional(),
+  page: z.number().int().positive().default(1),
+  limit: z.number().int().positive().max(100).default(50),
+});
+
+export const resolveReportSchema = z.object({
+  reportId: z.string().cuid(),
+  resolution: z.enum(['RESOLVED', 'DISMISSED']),
+  notes: z.string(),
+  actionTaken: z.string().optional(),
+});
+
+// ============================================================================
+// TYPE EXPORTS (Additional)
+// ============================================================================
+
+export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+
+export type UploadDocumentInput = z.infer<typeof uploadDocumentSchema>;
+export type SetWorkRadiusInput = z.infer<typeof setWorkRadiusSchema>;
+export type SetAvailabilityInput = z.infer<typeof setAvailabilitySchema>;
+export type AddServiceInput = z.infer<typeof addServiceSchema>;
+export type UpdateServiceInput = z.infer<typeof updateServiceSchema>;
+export type RemoveServiceInput = z.infer<typeof removeServiceSchema>;
+
+export type GetCategoryInput = z.infer<typeof getCategorySchema>;
+export type GetSubCategoriesInput = z.infer<typeof getSubCategoriesSchema>;
+export type GetServicesByProviderInput = z.infer<typeof getServicesByProviderSchema>;
+
+export type RescheduleBookingInput = z.infer<typeof rescheduleBookingSchema>;
+
+export type UpdateReviewInput = z.infer<typeof updateReviewSchema>;
+export type DeleteReviewInput = z.infer<typeof deleteReviewSchema>;
+export type GetReviewsForProviderInput = z.infer<typeof getReviewsForProviderSchema>;
+export type GetRatingsSummaryInput = z.infer<typeof getRatingsSummarySchema>;
+
+export type CreatePaymentIntentInput = z.infer<typeof createPaymentIntentSchema>;
+export type ConfirmPaymentInput = z.infer<typeof confirmPaymentSchema>;
+export type RefundPaymentInput = z.infer<typeof refundPaymentSchema>;
+export type GetTransactionHistoryInput = z.infer<typeof getTransactionHistorySchema>;
+
+export type SendBookingConfirmationInput = z.infer<typeof sendBookingConfirmationSchema>;
+export type SendProviderAlertInput = z.infer<typeof sendProviderAlertSchema>;
+export type SendPaymentSuccessInput = z.infer<typeof sendPaymentSuccessSchema>;
+export type SendReviewReminderInput = z.infer<typeof sendReviewReminderSchema>;
+export type UpdateNotificationPreferencesInput = z.infer<typeof updateNotificationPreferencesSchema>;
+
+export type AskAssistantInput = z.infer<typeof askAssistantSchema>;
+export type GetProviderInsightsInput = z.infer<typeof getProviderInsightsSchema>;
+export type GetAutoReplySuggestionsInput = z.infer<typeof getAutoReplySuggestionsSchema>;
+export type GetSmartMatchingInput = z.infer<typeof getSmartMatchingSchema>;
+
+export type CreateChatSessionInput = z.infer<typeof createChatSessionSchema>;
+export type GetChatMessagesInput = z.infer<typeof getChatMessagesSchema>;
+export type MarkReadInput = z.infer<typeof markReadSchema>;
+
+export type GetAllUsersInput = z.infer<typeof getAllUsersSchema>;
+export type GetAllProvidersInput = z.infer<typeof getAllProvidersSchema>;
+export type VerifyProviderDocumentsInput = z.infer<typeof verifyProviderDocumentsSchema>;
+export type BlockUserInput = z.infer<typeof blockUserSchema>;
+export type BlockProviderInput = z.infer<typeof blockProviderSchema>;
+export type ListReportsInput = z.infer<typeof listReportsSchema>;
+export type ResolveReportInput = z.infer<typeof resolveReportSchema>;

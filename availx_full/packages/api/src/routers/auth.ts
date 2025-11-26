@@ -9,6 +9,7 @@ import { TRPCError } from '@trpc/server';
 import { signJWT } from '../utils/jwt';
 import { generateOTP, sendOTPviaSMS, storeOTP, verifyOTP } from '../utils/otp';
 import { hash, compare } from 'bcryptjs';
+import { z } from 'zod';
 
 export const authRouter = router({
   sendOTP: publicProcedure
@@ -246,5 +247,87 @@ export const authRouter = router({
 
   logout: protectedProcedure.mutation(async () => {
     return { success: true };
+  }),
+
+  updateProfile: protectedProcedure
+    .input(z.object({
+      name: z.string().min(2).optional(),
+      email: z.string().email().optional(),
+      profilePhoto: z.string().url().optional(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const updatedUser = await ctx.prisma.user.update({
+        where: { id: ctx.session.id },
+        data: input,
+      });
+
+      return {
+        success: true,
+        user: {
+          id: updatedUser.id,
+          name: updatedUser.name,
+          email: updatedUser.email,
+          profilePhoto: updatedUser.profilePhoto,
+        },
+      };
+    }),
+
+  changePassword: protectedProcedure
+    .input(z.object({
+      currentPassword: z.string(),
+      newPassword: z.string().min(8),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const user = await ctx.prisma.user.findUnique({
+        where: { id: ctx.session.id },
+      });
+
+      if (!user || !user.passwordHash) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'User not found or no password set',
+        });
+      }
+
+      const isValid = await compare(input.currentPassword, user.passwordHash);
+
+      if (!isValid) {
+        throw new TRPCError({
+          code: 'UNAUTHORIZED',
+          message: 'Current password is incorrect',
+        });
+      }
+
+      const newPasswordHash = await hash(input.newPassword, 10);
+
+      await ctx.prisma.user.update({
+        where: { id: ctx.session.id },
+        data: { passwordHash: newPasswordHash },
+      });
+
+      return { success: true };
+    }),
+
+  getCurrentUser: protectedProcedure.query(async ({ ctx }) => {
+    const user = await ctx.prisma.user.findUnique({
+      where: { id: ctx.session.id },
+      include: {
+        customerProfile: true,
+        providerProfile: {
+          include: {
+            category: true,
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      throw new TRPCError({
+        code: 'NOT_FOUND',
+        message: 'User not found',
+      });
+    }
+
+    return user;
   }),
 });

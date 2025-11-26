@@ -634,4 +634,80 @@ export const bookingRouter = router({
 
       return updatedBooking;
     }),
+
+  reschedule: protectedProcedure
+    .input(z.object({
+      bookingId: z.string().cuid(),
+      scheduledDate: z.string().datetime(),
+      scheduledTime: z.object({
+        start: z.string().regex(/^\d{2}:\d{2}$/),
+        end: z.string().regex(/^\d{2}:\d{2}$/),
+      }),
+      reason: z.string().min(10).optional(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const { bookingId, scheduledDate, scheduledTime, reason } = input;
+
+      const booking = await ctx.prisma.booking.findUnique({
+        where: { id: bookingId },
+        include: {
+          customer: { include: { user: true } },
+          provider: { include: { user: true } },
+        },
+      });
+
+      if (!booking) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Booking not found',
+        });
+      }
+
+      const isCustomer = ctx.session.role === 'CUSTOMER' &&
+        ctx.session.customerProfile?.id === booking.customerId;
+      const isProvider = ctx.session.role === 'PROVIDER' &&
+        ctx.session.providerProfile?.id === booking.providerId;
+
+      if (!isCustomer && !isProvider) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'You do not have access to this booking',
+        });
+      }
+
+      if (booking.status === 'COMPLETED' || booking.status === 'CANCELLED') {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Cannot reschedule a completed or cancelled booking',
+        });
+      }
+
+      const updatedBooking = await ctx.prisma.booking.update({
+        where: { id: bookingId },
+        data: {
+          scheduledDate: new Date(scheduledDate),
+          scheduledTime: scheduledTime as any,
+        },
+      });
+
+      const notifyUserId = isCustomer ? booking.provider.userId : booking.customer.userId;
+      const requestedBy = isCustomer ? 'customer' : 'provider';
+
+      await ctx.prisma.notification.create({
+        data: {
+          userId: notifyUserId,
+          type: 'BOOKING_RESCHEDULED',
+          title: 'Booking Rescheduled',
+          body: `Booking ${booking.bookingNumber} has been rescheduled by the ${requestedBy}. ${reason ? `Reason: ${reason}` : ''}`,
+          data: {
+            bookingId: updatedBooking.id,
+            bookingNumber: updatedBooking.bookingNumber,
+            newDate: scheduledDate,
+            newTime: scheduledTime,
+          },
+        },
+      });
+
+      return updatedBooking;
+    }),
 });
