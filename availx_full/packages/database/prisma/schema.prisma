@@ -9,7 +9,7 @@ generator client {
 datasource db {
   provider   = "postgresql"
   url        = env("DATABASE_URL")
-  extensions = [pgvector(map: "vector")]
+  extensions = [pgvector(map: "vector"), postgis]
 }
 
 // ============================================================================
@@ -203,6 +203,10 @@ model ProviderProfile {
 
   // AI Features
   embedding           Unsupported("vector(1536)")? // For semantic search
+
+  // PostGIS Geospatial
+  locationGeom        Unsupported("geometry(Point, 4326)")? // PostGIS geometry for spatial queries
+  searchVector        Unsupported("tsvector")? // Full-text search vector
 
   // Timestamps
   createdAt       DateTime  @default(now())
